@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#05050a" />
+<title>Simulador de Ganhos — DK Diário Brawl</title>
+<link rel="icon" href="logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#05050a;--bg-2:#0a0a13;--panel:#101019;--panel-2:#16161f;
+  --line:rgba(255,255,255,.09);--line-2:rgba(255,255,255,.16);
+  --purple:#9b3cff;--purple-soft:#b56bff;--gold:#ffc531;--gold-soft:#ffd970;
+  --green:#36e07a;--red:#ff7a7a;--blue:#2e9bff;
+  --text:#f4f4f8;--muted:#9b9bb0;--muted-2:#6f6f86;
+  --r:16px;--r-sm:10px;--ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Inter",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55;-webkit-font-smoothing:antialiased;padding-bottom:60px}
+h1,h2,h3{font-family:"Oswald",sans-serif;letter-spacing:.5px;line-height:1.1}
+::selection{background:var(--purple);color:#fff}
+::-webkit-scrollbar{width:10px}
+::-webkit-scrollbar-thumb{background:var(--purple);border-radius:99px;border:2px solid var(--bg)}
+input,select,button{font-family:inherit}
+
+.bg-glow{position:fixed;z-index:-1;border-radius:50%;filter:blur(130px);pointer-events:none;opacity:.4}
+.bg-glow--p{width:520px;height:520px;background:#6a18c9;top:-180px;left:-120px}
+.bg-glow--g{width:380px;height:380px;background:#6e5000;bottom:-140px;right:-100px;opacity:.25}
+
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+
+/* HEADER */
+.head{text-align:center;padding:42px 16px 26px}
+.head img{width:104px;height:104px;border-radius:50%;object-fit:cover;box-shadow:0 0 44px -8px rgba(155,60,255,.6);margin-bottom:14px}
+.head h1{font-size:30px;margin-bottom:6px}
+.head p{color:var(--muted);font-size:15px}
+.badge-int{display:inline-block;margin-top:12px;font-family:"Oswald",sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--purple-soft);background:rgba(155,60,255,.1);border:1px solid rgba(155,60,255,.3);padding:5px 14px;border-radius:99px}
+
+/* CARD */
+.card{background:linear-gradient(180deg,var(--panel),var(--bg-2));border:1px solid var(--line);border-radius:var(--r);padding:26px;margin-bottom:18px}
+.card__title{display:flex;align-items:center;gap:10px;font-size:21px;margin-bottom:4px}
+.card__title .ico{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:rgba(155,60,255,.16);border:1px solid rgba(155,60,255,.3);font-size:18px}
+.card__sub{color:var(--muted);font-size:13.5px;margin-bottom:20px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{margin-bottom:4px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px;font-weight:500}
+.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 14px;color:var(--text);font-size:16px}
+.field input:focus,.field select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(155,60,255,.2)}
+
+/* toggle */
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:4px;gap:4px}
+.seg button{flex:1;background:none;border:none;color:var(--muted);font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.5px;padding:10px;border-radius:7px;font-size:14px;transition:.2s;cursor:pointer}
+.seg button.on{background:linear-gradient(135deg,var(--gold),var(--gold-soft));color:#1a1300}
+.seg.seg--purple button.on{background:linear-gradient(135deg,var(--purple),#6a18c9);color:#fff}
+
+/* result */
+.result{margin-top:20px;background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:var(--r-sm);padding:18px}
+.line{display:flex;justify-content:space-between;align-items:center;font-size:14.5px;color:var(--muted);padding:7px 0}
+.line span:last-child{font-family:"Oswald",sans-serif;color:var(--text);font-size:17px}
+.line--big{border-top:1px dashed var(--line-2);margin-top:6px;padding-top:13px}
+.line--big span:last-child{color:var(--gold);font-size:24px;font-weight:700}
+.line--net span:last-child{color:var(--green);font-size:18px;font-weight:700}
+
+/* stat grid (projeção) */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:20px}
+.stat{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:var(--r-sm);padding:18px;text-align:center}
+.stat .v{font-family:"Oswald",sans-serif;font-size:30px;font-weight:700}
+.stat .l{font-size:12px;color:var(--muted-2);margin-top:2px}
+.stat--day .v{color:var(--blue)}
+.stat--week .v{color:var(--purple-soft)}
+.stat--month .v{color:var(--gold)}
+.stat--match .v{color:var(--text)}
+.stat--hl{border-color:rgba(255,197,49,.4);box-shadow:0 0 30px -12px rgba(255,197,49,.5)}
+.proj-note{font-size:12.5px;color:var(--muted-2);margin-top:14px;text-align:center}
+
+details.adv{background:linear-gradient(180deg,var(--panel),var(--bg-2));border:1px solid var(--line);border-radius:var(--r);margin-bottom:18px;padding:0 22px}
+details.adv summary{cursor:pointer;list-style:none;font-family:"Oswald",sans-serif;font-size:16px;padding:18px 0;display:flex;justify-content:space-between;align-items:center}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::after{content:"+";color:var(--purple-soft);font-size:24px;transition:.2s}
+details.adv[open] summary::after{transform:rotate(45deg)}
+details.adv .body{padding-bottom:20px}
+
+.foot{text-align:center;color:var(--muted-2);font-size:12.5px;padding:24px 16px 0}
+.warn{color:var(--red);font-size:13px;margin-top:10px;text-align:center;display:none}
+.warn.on{display:block}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="bg-glow bg-glow--p"></div>
+<div class="bg-glow bg-glow--g"></div>
+
+<div class="head">
+  <img src="logo.png" alt="DK Diário Brawl" onerror="this.style.display='none'" />
+  <h1>Simulador de Ganhos</h1>
+  <p>Calcule prêmios e projete sua renda nos diários sem erro.</p>
+  <div class="badge-int">Uso interno · DK Diário Brawl</div>
+</div>
+
+<div class="wrap">
+
+  <!-- ====== PROJEÇÃO DE RENDA (principal) ====== -->
+  <div class="card">
+    <div class="card__title"><span class="ico">📈</span> Projeção de renda</div>
+    <p class="card__sub">Quanto você fatura rodando diários — por dia, semana e mês, já descontando o gasto semanal.</p>
+
+    <div class="field" style="margin-bottom:16px">
+      <label>Você é o Dono ou ADM?</label>
+      <div class="seg seg--purple" id="segRole">
+        <button data-role="dono" class="on">Dono (100%)</button>
+        <button data-role="adm">ADM (50%)</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="field"><label>Jogadores por partida (média)</label><input type="number" id="pjPlayers" min="2" max="10" value="10" /></div>
+      <div class="field"><label>Kills pagas por partida (média)</label><input type="number" id="pjKills" min="0" value="9" /></div>
+      <div class="field"><label>Partidas por dia</label><input type="number" id="pjMatches" min="0" value="5" /></div>
+      <div class="field"><label>Dias por semana que você roda</label><input type="number" id="pjDays" min="0" max="7" value="7" /></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat stat--match"><div class="v" id="pjPerMatch">—</div><div class="l">Sua parte por partida</div></div>
+      <div class="stat stat--day"><div class="v" id="pjPerDay">—</div><div class="l">Por dia</div></div>
+      <div class="stat stat--week"><div class="v" id="pjPerWeek">—</div><div class="l">Por semana (líquido)</div></div>
+      <div class="stat stat--month stat--hl"><div class="v" id="pjPerMonth">—</div><div class="l">Por mês (líquido)</div></div>
+    </div>
+    <div class="warn" id="pjWarn">⚠️ Com esses números a partida dá prejuízo (prêmios &gt; arrecadado). Revise as kills ou jogadores.</div>
+    <div class="proj-note" id="pjNote"></div>
+  </div>
+
+  <!-- ====== PRÊMIO DO JOGADOR ====== -->
+  <div class="card">
+    <div class="card__title"><span class="ico">🎯</span> Quanto pagar a um jogador</div>
+    <p class="card__sub">Confira exatamente quanto um jogador deve receber numa partida. Zero erro na hora de pagar.</p>
+
+    <div class="grid">
+      <div class="field"><label>Jogadores na sala</label><input type="number" id="pgPlayers" min="2" max="10" value="10" /></div>
+      <div class="field"><label>Kills que ele fez</label><input type="number" id="pgKills" min="0" value="3" /></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Ele venceu a partida?</label>
+      <div class="seg" id="segWon">
+        <button data-won="1" class="on">Sim, venceu</button>
+        <button data-won="0">Não venceu</button>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="line"><span>Prêmio por kills (<span id="pgK">3</span> × <span class="vkill">R$3</span>)</span><span id="pgKillsMoney">R$ 9,00</span></div>
+      <div class="line"><span>Prêmio de vitória</span><span id="pgWinMoney">R$ 10,00</span></div>
+      <div class="line line--big"><span>Total a receber (você paga)</span><span id="pgTotal">R$ 19,00</span></div>
+      <div class="line line--net"><span>Lucro dele (após a inscrição de <span class="vins">R$5</span>)</span><span id="pgNet">R$ 14,00</span></div>
+    </div>
+  </div>
+
+  <!-- ====== LUCRO DA SALA ====== -->
+  <div class="card">
+    <div class="card__title"><span class="ico">🏦</span> Lucro de uma sala (a casa)</div>
+    <p class="card__sub">O que sobra pra casa em UMA partida específica e quanto fica pra você.</p>
+
+    <div class="grid">
+      <div class="field"><label>Jogadores na sala</label><input type="number" id="slPlayers" min="2" max="10" value="10" /></div>
+      <div class="field"><label>Total de kills na sala</label><input type="number" id="slKills" min="0" value="9" /></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Quem rodou essa sala?</label>
+      <div class="seg seg--purple" id="segSala">
+        <button data-role="dono" class="on">Dono (100%)</button>
+        <button data-role="adm">ADM (50%)</button>
+      </div>
+    </div>
+
+    <div class="result">
+      <div class="line"><span>Arrecadado (<span id="slN">10</span> × <span class="vins">R$5</span>)</span><span id="slArrec">R$ 50,00</span></div>
+      <div class="line"><span>Prêmios pagos (vitória + kills)</span><span id="slPremios">R$ 37,00</span></div>
+      <div class="line line--big"><span>Lucro da casa</span><span id="slLucro">R$ 13,00</span></div>
+      <div class="line line--net"><span id="slShareLbl">Sua parte (100%)</span><span id="slShare">R$ 13,00</span></div>
+    </div>
+  </div>
+
+  <!-- ====== VALORES (opcional) ====== -->
+  <details class="adv">
+    <summary>Valores usados nos cálculos (mexa só se mudar as regras)</summary>
+    <div class="body">
+      <div class="grid">
+        <div class="field"><label>Inscrição por jogador (R$)</label><input type="number" id="vInscricao" min="0" step="0.5" value="5" /></div>
+        <div class="field"><label>Prêmio por kill (R$)</label><input type="number" id="vKill" min="0" step="0.5" value="3" /></div>
+        <div class="field"><label>Prêmio de vitória por jogador (R$)</label><input type="number" id="vVitoria" min="0" step="0.5" value="1" /></div>
+        <div class="field"><label>Gasto semanal do ADM (R$)</label><input type="number" id="vSemanal" min="0" step="0.5" value="10" /></div>
+      </div>
+      <p class="proj-note" style="text-align:left">Vitória = nº de jogadores × esse valor. Ex: 10 jogadores × R$1 = R$10 pro campeão.</p>
+    </div>
+  </details>
+
+  <p class="foot">DK Diário Brawl · ferramenta interna dos ADMs. Os valores ficam salvos neste aparelho.</p>
+</div>
+
+<script>
+/* ============ CONFIG / ESTADO ============ */
+var STORE = "dkSim_v1";
+var cfg = loadCfg();
+function loadCfg(){
+  try{ var d = JSON.parse(localStorage.getItem(STORE)); if(d) return d; }catch(e){}
+  return { inscricao:5, kill:3, vitoria:1, semanal:10 };
+}
+function saveCfg(){ localStorage.setItem(STORE, JSON.stringify(cfg)); }
+
+var pjRole = "dono";   // projeção
+var pgWon = true;      // jogador venceu
+var slRole = "dono";   // lucro da sala
+
+function brl(n){
+  var neg = n < 0; n = Math.abs(Math.round(n*100)/100);
+  return (neg?"- ":"") + "R$ " + n.toFixed(2).replace(".",",");
+}
+function num(id){ var v = parseFloat(document.getElementById(id).value); return isNaN(v)?0:v; }
+function $(id){ return document.getElementById(id); }
+
+/* ============ VALORES (config) ============ */
+function applyCfgToInputs(){
+  $("vInscricao").value = cfg.inscricao;
+  $("vKill").value = cfg.kill;
+  $("vVitoria").value = cfg.vitoria;
+  $("vSemanal").value = cfg.semanal;
+}
+function readCfgFromInputs(){
+  cfg.inscricao = num("vInscricao");
+  cfg.kill = num("vKill");
+  cfg.vitoria = num("vVitoria");
+  cfg.semanal = num("vSemanal");
+  saveCfg();
+  // atualiza rótulos
+  document.querySelectorAll(".vkill").forEach(function(e){ e.textContent = brl(cfg.kill); });
+  document.querySelectorAll(".vins").forEach(function(e){ e.textContent = brl(cfg.inscricao); });
+  calcAll();
+}
+["vInscricao","vKill","vVitoria","vSemanal"].forEach(function(id){
+  $(id).addEventListener("input", readCfgFromInputs);
+});
+
+/* ============ PROJEÇÃO ============ */
+function calcProjecao(){
+  var players = num("pjPlayers");
+  var kills = num("pjKills");
+  var matches = num("pjMatches");
+  var days = num("pjDays");
+
+  var arrec = players * cfg.inscricao;
+  var premios = (players * cfg.vitoria) + (kills * cfg.kill);
+  var lucro = arrec - premios;                 // lucro da casa por partida
+  var share = pjRole === "dono" ? lucro : lucro/2;
+
+  var perDay = share * matches;
+  var perWeekGross = perDay * days;
+  var weeklyCost = pjRole === "dono" ? 0 : cfg.semanal;
+  var perWeek = perWeekGross - weeklyCost;
+  var perMonth = perWeek * 4.33;
+
+  $("pjPerMatch").textContent = brl(share);
+  $("pjPerDay").textContent = brl(perDay);
+  $("pjPerWeek").textContent = brl(perWeek);
+  $("pjPerMonth").textContent = brl(perMonth);
+  $("pjWarn").className = "warn" + (lucro < 0 ? " on" : "");
+
+  var costTxt = pjRole === "dono"
+    ? "Como Dono, você fica com 100% do lucro e não paga gasto semanal."
+    : "Como ADM, você fica com 50% do lucro e já descontamos o gasto semanal de " + brl(cfg.semanal) + ".";
+  $("pjNote").textContent = costTxt + " Mês estimado em ~4,3 semanas.";
+}
+
+/* ============ PRÊMIO DO JOGADOR ============ */
+function calcJogador(){
+  var players = num("pgPlayers");
+  var kills = num("pgKills");
+  var killsMoney = kills * cfg.kill;
+  var winMoney = pgWon ? players * cfg.vitoria : 0;
+  var total = killsMoney + winMoney;
+  var net = total - cfg.inscricao;
+
+  $("pgK").textContent = kills;
+  $("pgKillsMoney").textContent = brl(killsMoney);
+  $("pgWinMoney").textContent = brl(winMoney);
+  $("pgTotal").textContent = brl(total);
+  $("pgNet").textContent = brl(net);
+}
+
+/* ============ LUCRO DA SALA ============ */
+function calcSala(){
+  var players = num("slPlayers");
+  var kills = num("slKills");
+  var arrec = players * cfg.inscricao;
+  var premios = (players * cfg.vitoria) + (kills * cfg.kill);
+  var lucro = arrec - premios;
+  var share = slRole === "dono" ? lucro : lucro/2;
+
+  $("slN").textContent = players;
+  $("slArrec").textContent = brl(arrec);
+  $("slPremios").textContent = brl(premios);
+  $("slLucro").textContent = brl(lucro);
+  $("slShareLbl").textContent = slRole === "dono" ? "Sua parte (100%)" : "Sua parte (50%)";
+  $("slShare").textContent = brl(share);
+}
+
+function calcAll(){ calcProjecao(); calcJogador(); calcSala(); }
+
+/* ============ EVENTOS ============ */
+function bindSeg(segId, onPick){
+  document.getElementById(segId).addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    this.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    onPick(b);
+  });
+}
+bindSeg("segRole", function(b){ pjRole = b.dataset.role; calcProjecao(); });
+bindSeg("segSala", function(b){ slRole = b.dataset.role; calcSala(); });
+bindSeg("segWon", function(b){ pgWon = b.dataset.won === "1"; calcJogador(); });
+
+["pjPlayers","pjKills","pjMatches","pjDays"].forEach(function(id){ $(id).addEventListener("input", calcProjecao); });
+["pgPlayers","pgKills"].forEach(function(id){ $(id).addEventListener("input", calcJogador); });
+["slPlayers","slKills"].forEach(function(id){ $(id).addEventListener("input", calcSala); });
+
+/* ============ INIT ============ */
+applyCfgToInputs();
+document.querySelectorAll(".vkill").forEach(function(e){ e.textContent = brl(cfg.kill); });
+document.querySelectorAll(".vins").forEach(function(e){ e.textContent = brl(cfg.inscricao); });
+calcAll();
+</script>
+</body>
+</html>
