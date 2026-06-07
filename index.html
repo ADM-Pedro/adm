@@ -87,6 +87,18 @@ details.adv .body{padding-bottom:20px}
 .foot{text-align:center;color:var(--muted-2);font-size:12.5px;padding:24px 16px 0}
 .warn{color:var(--red);font-size:13px;margin-top:10px;text-align:center;display:none}
 .warn.on{display:block}
+.modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(4px)}
+.modal.on{display:flex}
+.modal__box{width:100%;max-width:360px;background:linear-gradient(180deg,var(--panel),var(--bg-2));border:1px solid var(--line-2);border-radius:var(--r);padding:26px;text-align:center;box-shadow:0 30px 80px -30px #000}
+.modal__box h3{font-size:21px;margin-bottom:6px}
+.modal__box p{color:var(--muted);font-size:13.5px;margin-bottom:18px}
+.modal__box input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 14px;color:var(--text);font-size:16px;text-align:center;letter-spacing:1px}
+.modal__box input:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(155,60,255,.2)}
+.modal__err{color:var(--red);font-size:13px;min-height:16px;margin-top:8px}
+.modal__btns{display:flex;gap:10px;margin-top:12px}
+.modal__btns button{flex:1;border:none;border-radius:99px;padding:13px;font-family:"Oswald",sans-serif;font-weight:600;letter-spacing:.5px;cursor:pointer;font-size:14px}
+.mbtn-ok{background:linear-gradient(135deg,var(--purple),#6a18c9);color:#fff}
+.mbtn-cancel{background:rgba(255,255,255,.06);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-2)}
 @media(max-width:560px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -111,8 +123,8 @@ details.adv .body{padding-bottom:20px}
     <div class="field" style="margin-bottom:16px">
       <label>Você é o Dono ou ADM?</label>
       <div class="seg seg--purple" id="segRole">
-        <button data-role="dono" class="on">Dono (100%)</button>
-        <button data-role="adm">ADM (50%)</button>
+        <button data-role="dono">🔒 Dono (100%)</button>
+        <button data-role="adm" class="on">ADM (50%)</button>
       </div>
     </div>
 
@@ -170,8 +182,8 @@ details.adv .body{padding-bottom:20px}
     <div class="field" style="margin-top:10px">
       <label>Quem rodou essa sala?</label>
       <div class="seg seg--purple" id="segSala">
-        <button data-role="dono" class="on">Dono (100%)</button>
-        <button data-role="adm">ADM (50%)</button>
+        <button data-role="dono">🔒 Dono (100%)</button>
+        <button data-role="adm" class="on">ADM (50%)</button>
       </div>
     </div>
 
@@ -200,6 +212,19 @@ details.adv .body{padding-bottom:20px}
   <p class="foot">DK Diário Brawl · ferramenta interna dos ADMs. Os valores ficam salvos neste aparelho.</p>
 </div>
 
+<div class="modal" id="loginModal">
+  <div class="modal__box">
+    <h3>Entrar como Dono 🔒</h3>
+    <p>Digite a senha do Dono pra ver os ganhos de 100%.</p>
+    <input type="password" id="loginPw" placeholder="Senha" autocomplete="off" />
+    <div class="modal__err" id="loginErr"></div>
+    <div class="modal__btns">
+      <button class="mbtn-cancel" id="loginCancel">Cancelar</button>
+      <button class="mbtn-ok" id="loginOk">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============ CONFIG / ESTADO ============ */
 var STORE = "dkSim_v1";
@@ -210,9 +235,11 @@ function loadCfg(){
 }
 function saveCfg(){ localStorage.setItem(STORE, JSON.stringify(cfg)); }
 
-var pjRole = "dono";   // projeção
+var pjRole = "adm";    // projeção (padrão ADM; Dono protegido por senha)
 var pgWon = true;      // jogador venceu
-var slRole = "dono";   // lucro da sala
+var slRole = "adm";    // lucro da sala
+var donoUnlocked = false;
+var DONO_PW = "Tecnica25@";
 
 function brl(n){
   var neg = n < 0; n = Math.abs(Math.round(n*100)/100);
@@ -317,9 +344,44 @@ function bindSeg(segId, onPick){
     onPick(b);
   });
 }
-bindSeg("segRole", function(b){ pjRole = b.dataset.role; calcProjecao(); });
-bindSeg("segSala", function(b){ slRole = b.dataset.role; calcSala(); });
 bindSeg("segWon", function(b){ pgWon = b.dataset.won === "1"; calcJogador(); });
+
+/* ====== ROLE com senha do Dono ====== */
+function pickSeg(seg, b){ seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); }); b.classList.add("on"); }
+function bindRole(segId, apply){
+  var seg = document.getElementById(segId);
+  seg.addEventListener("click", function(e){
+    var b = e.target.closest("button"); if(!b) return;
+    if(b.dataset.role === "dono" && !donoUnlocked){
+      openLogin(function(){ pickSeg(seg, b); apply("dono"); });
+      return;
+    }
+    pickSeg(seg, b); apply(b.dataset.role);
+  });
+}
+bindRole("segRole", function(r){ pjRole = r; calcProjecao(); });
+bindRole("segSala", function(r){ slRole = r; calcSala(); });
+
+/* ====== MODAL LOGIN ====== */
+var loginCb = null;
+function openLogin(cb){
+  loginCb = cb; $("loginErr").textContent = ""; $("loginPw").value = "";
+  $("loginModal").classList.add("on");
+  setTimeout(function(){ $("loginPw").focus(); }, 50);
+}
+function closeLogin(){ $("loginModal").classList.remove("on"); loginCb = null; }
+function tryLogin(){
+  if($("loginPw").value === DONO_PW){
+    donoUnlocked = true; var cb = loginCb; closeLogin(); if(cb) cb();
+  } else {
+    $("loginErr").textContent = "Senha errada.";
+    $("loginPw").value = ""; $("loginPw").focus();
+  }
+}
+$("loginOk").onclick = tryLogin;
+$("loginCancel").onclick = closeLogin;
+$("loginPw").addEventListener("keydown", function(e){ if(e.key === "Enter") tryLogin(); });
+$("loginModal").addEventListener("click", function(e){ if(e.target === this) closeLogin(); });
 
 ["pjPlayers","pjKills","pjMatches","pjDays"].forEach(function(id){ $(id).addEventListener("input", calcProjecao); });
 ["pgPlayers","pgKills"].forEach(function(id){ $(id).addEventListener("input", calcJogador); });
