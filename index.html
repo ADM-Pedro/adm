@@ -129,10 +129,17 @@ details.adv .body{padding-bottom:20px}
     </div>
 
     <div class="grid">
-      <div class="field"><label>Jogadores por partida (média)</label><input type="number" id="pjPlayers" min="2" max="10" value="10" /></div>
+      <div class="field"><label>Jogadores por partida (incluindo você)</label><input type="number" id="pjPlayers" min="2" max="10" value="10" /></div>
       <div class="field"><label>Kills pagas por partida (média)</label><input type="number" id="pjKills" min="0" value="9" /></div>
       <div class="field"><label>Partidas por dia</label><input type="number" id="pjMatches" min="0" value="5" /></div>
       <div class="field"><label>Dias por semana que você roda</label><input type="number" id="pjDays" min="0" max="7" value="7" /></div>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label>Você joga nas partidas? (quem joga não paga inscrição)</label>
+      <div class="seg" id="segPjPlays">
+        <button data-plays="1" class="on">Sim, jogo de graça</button>
+        <button data-plays="0">Não, só fiscalizo</button>
+      </div>
     </div>
 
     <div class="stats">
@@ -176,8 +183,15 @@ details.adv .body{padding-bottom:20px}
     <p class="card__sub">O que sobra pra casa em UMA partida específica e quanto fica pra você.</p>
 
     <div class="grid">
-      <div class="field"><label>Jogadores na sala</label><input type="number" id="slPlayers" min="2" max="10" value="10" /></div>
+      <div class="field"><label>Jogadores na sala (incluindo o ADM)</label><input type="number" id="slPlayers" min="2" max="10" value="10" /></div>
       <div class="field"><label>Total de kills na sala</label><input type="number" id="slKills" min="0" value="9" /></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>O ADM jogou nessa sala? (ele não paga inscrição)</label>
+      <div class="seg" id="segSlPlays">
+        <button data-plays="1" class="on">Sim, jogou</button>
+        <button data-plays="0">Não, só fiscalizou</button>
+      </div>
     </div>
     <div class="field" style="margin-top:10px">
       <label>Quem rodou essa sala?</label>
@@ -188,7 +202,7 @@ details.adv .body{padding-bottom:20px}
     </div>
 
     <div class="result">
-      <div class="line"><span>Arrecadado (<span id="slN">10</span> × <span class="vins">R$5</span>)</span><span id="slArrec">R$ 50,00</span></div>
+      <div class="line"><span>Arrecadado (<span id="slN">9</span> pagantes × <span class="vins">R$5</span>)</span><span id="slArrec">R$ 45,00</span></div>
       <div class="line"><span>Prêmios pagos (vitória + kills)</span><span id="slPremios">R$ 37,00</span></div>
       <div class="line line--big"><span>Lucro da casa</span><span id="slLucro">R$ 13,00</span></div>
       <div class="line line--net"><span id="slShareLbl">Sua parte (100%)</span><span id="slShare">R$ 13,00</span></div>
@@ -238,6 +252,8 @@ function saveCfg(){ localStorage.setItem(STORE, JSON.stringify(cfg)); }
 var pjRole = "adm";    // projeção (padrão ADM; Dono protegido por senha)
 var pgWon = true;      // jogador venceu
 var slRole = "adm";    // lucro da sala
+var pjPlays = true;    // na projeção, quem roda também joga (não paga)
+var slPlays = true;    // na sala, o ADM jogou (não pagou)
 var donoUnlocked = false;
 var DONO_PW = "Tecnica25@";
 
@@ -277,7 +293,8 @@ function calcProjecao(){
   var matches = num("pjMatches");
   var days = num("pjDays");
 
-  var arrec = players * cfg.inscricao;
+  var payers = pjPlays ? Math.max(players - 1, 0) : players;  // quem roda joga de graça
+  var arrec = payers * cfg.inscricao;
   var premios = (players * cfg.vitoria) + (kills * cfg.kill);
   var lucro = arrec - premios;                 // lucro da casa por partida
   var share = pjRole === "dono" ? lucro : lucro/2;
@@ -294,10 +311,11 @@ function calcProjecao(){
   $("pjPerMonth").textContent = brl(perMonth);
   $("pjWarn").className = "warn" + (lucro < 0 ? " on" : "");
 
+  var playTxt = pjPlays ? " Você joga de graça (1 vaga não paga), por isso a sala arrecada " + brl(arrec) + "." : "";
   var costTxt = pjRole === "dono"
     ? "Como Dono, você fica com 100% do lucro e não paga gasto semanal."
     : "Como ADM, você fica com 50% do lucro e já descontamos o gasto semanal de " + brl(cfg.semanal) + ".";
-  $("pjNote").textContent = costTxt + " Mês estimado em ~4,3 semanas.";
+  $("pjNote").textContent = costTxt + playTxt + " Mês estimado em ~4,3 semanas.";
 }
 
 /* ============ PRÊMIO DO JOGADOR ============ */
@@ -320,12 +338,13 @@ function calcJogador(){
 function calcSala(){
   var players = num("slPlayers");
   var kills = num("slKills");
-  var arrec = players * cfg.inscricao;
+  var payers = slPlays ? Math.max(players - 1, 0) : players;  // ADM joga de graça
+  var arrec = payers * cfg.inscricao;
   var premios = (players * cfg.vitoria) + (kills * cfg.kill);
   var lucro = arrec - premios;
   var share = slRole === "dono" ? lucro : lucro/2;
 
-  $("slN").textContent = players;
+  $("slN").textContent = payers;
   $("slArrec").textContent = brl(arrec);
   $("slPremios").textContent = brl(premios);
   $("slLucro").textContent = brl(lucro);
@@ -345,6 +364,8 @@ function bindSeg(segId, onPick){
   });
 }
 bindSeg("segWon", function(b){ pgWon = b.dataset.won === "1"; calcJogador(); });
+bindSeg("segPjPlays", function(b){ pjPlays = b.dataset.plays === "1"; calcProjecao(); });
+bindSeg("segSlPlays", function(b){ slPlays = b.dataset.plays === "1"; calcSala(); });
 
 /* ====== ROLE com senha do Dono ====== */
 function pickSeg(seg, b){ seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); }); b.classList.add("on"); }
